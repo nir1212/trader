@@ -1,0 +1,65 @@
+trading:
+  mode: paper  # paper or live
+  initial_capital: 10000
+  log_level: INFO
+
+stock_bot:
+  enabled: true
+  symbols:
+    - AAPL
+    - GOOGL
+    - MSFT
+    - TSLA
+    - AMZN
+  paper_trading: true
+
+crypto_bot:
+  enabled: true
+  exchange: binance
+  pairs:
+    - BTC/USDT
+    - ETH/USDT
+    - SOL/USDT
+    - BNB/USDT
+  testnet: true
+
+strategies:
+  - name: moving_average_crossover
+    enabled: true
+    params:
+      fast_period: 10
+      slow_period: 30
+      ma_type: sma
+      
+  - name: rsi_strategy
+    enabled: true
+    params:
+      period: 14
+      oversold: 30
+      overbought: 70
+      
+  - name: macd_strategy
+    enabled: true
+    params:
+      fast_period: 12
+      slow_period: 26
+      signal_period: 9
+      
+  - name: bollinger_bands
+    enabled: false
+    params:
+      period: 20
+      std_dev: 2
+
+risk_management:
+  max_position_size: 0.1  # 10% of portfolio per position
+  max_portfolio_risk: 0.02  # 2% risk per trade
+  stop_loss_pct: 0.05  # 5% stop loss
+  take_profit_pct: 0.10  # 10% take profit
+  max_positions: 5
+
+backtesting:
+  enabled: false
+  symbol: AAPL
+  period: 1y
+  commission: 0.001
