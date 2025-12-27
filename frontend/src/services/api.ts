@@ -8,7 +8,11 @@ import type {
   BotConfig,
   Strategy,
   PerformanceMetrics,
-  Snapshot
+  Snapshot,
+  Bot,
+  CreateBotRequest,
+  UpdateBotRequest,
+  AvailableStrategy
 } from '../types';
 
 const API_BASE = '/api';
@@ -57,13 +61,13 @@ export const createPortfolio = async (name: string, initial_capital: number): Pr
   return response.data;
 };
 
-// Bot Control
-export const startBot = async (config: BotConfig) => {
+// Bot Control (Legacy - single bot)
+export const startLegacyBot = async (config: BotConfig) => {
   const response = await api.post('/bot/start', config);
   return response.data;
 };
 
-export const stopBot = async () => {
+export const stopLegacyBot = async () => {
   const response = await api.post('/bot/stop');
   return response.data;
 };
@@ -107,6 +111,59 @@ export const getSignals = async (
 export const getStrategies = async (): Promise<Strategy[]> => {
   const response = await api.get('/strategies/');
   return response.data;
+};
+
+// Bot Management
+export const createBot = async (botData: CreateBotRequest): Promise<Bot> => {
+  const response = await api.post('/bots/', botData);
+  return response.data;
+};
+
+export const getBots = async (activeOnly = true): Promise<Bot[]> => {
+  const response = await api.get('/bots/', { params: { active_only: activeOnly } });
+  return response.data;
+};
+
+export const getBot = async (botId: number): Promise<Bot> => {
+  const response = await api.get(`/bots/${botId}`);
+  return response.data;
+};
+
+export const updateBot = async (botId: number, updates: UpdateBotRequest): Promise<Bot> => {
+  const response = await api.put(`/bots/${botId}`, updates);
+  return response.data;
+};
+
+export const deleteBot = async (botId: number): Promise<void> => {
+  await api.delete(`/bots/${botId}`);
+};
+
+export const startBot = async (botId: number, apiKey?: string, apiSecret?: string): Promise<Bot> => {
+  const response = await api.post(`/bots/${botId}/start`, {
+    api_key: apiKey,
+    api_secret: apiSecret
+  });
+  return response.data;
+};
+
+export const stopBot = async (botId: number): Promise<Bot> => {
+  const response = await api.post(`/bots/${botId}/stop`);
+  return response.data;
+};
+
+export const restartBot = async (botId: number): Promise<Bot> => {
+  const response = await api.post(`/bots/${botId}/restart`);
+  return response.data;
+};
+
+export const getBotSignals = async (botId: number, limit = 50): Promise<Signal[]> => {
+  const response = await api.get(`/bots/${botId}/signals`, { params: { limit } });
+  return response.data;
+};
+
+export const getAvailableStrategies = async (): Promise<AvailableStrategy[]> => {
+  const response = await api.get('/bots/strategies/available');
+  return response.data.strategies;
 };
 
 export default api;

@@ -1,11 +1,11 @@
 from fastapi import FastAPI
 from fastapi.middleware.cors import CORSMiddleware
-from trader.api.routers import portfolio, bot, trades, strategies, health
+from trader.api.routers import portfolio, bot, trades, strategies, health, bots
 
 app = FastAPI(
     title="Trading Bot API",
     description="REST API for managing your trading bot",
-    version="1.0.0"
+    version="2.0.0"
 )
 
 # CORS middleware for frontend
@@ -20,7 +20,8 @@ app.add_middleware(
 # Include routers
 app.include_router(health.router, prefix="/api", tags=["Health"])
 app.include_router(portfolio.router, prefix="/api/portfolio", tags=["Portfolio"])
-app.include_router(bot.router, prefix="/api/bot", tags=["Bot Control"])
+app.include_router(bot.router, prefix="/api/bot", tags=["Bot Control (Legacy)"])
+app.include_router(bots.router, prefix="/api", tags=["Bot Management"])
 app.include_router(trades.router, prefix="/api/trades", tags=["Trades"])
 app.include_router(strategies.router, prefix="/api/strategies", tags=["Strategies"])
 

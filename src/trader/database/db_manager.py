@@ -6,7 +6,7 @@ from sqlalchemy.orm import sessionmaker, Session
 from pathlib import Path
 import json
 
-from trader.database.models import Base, Trade, Portfolio, PortfolioSnapshot, Signal, Performance, Position
+from trader.database.models import Base, Trade, Portfolio, PortfolioSnapshot, Signal, Performance, Position, Bot
 
 
 class DatabaseManager:
@@ -215,6 +215,7 @@ class DatabaseManager:
         signal_type: str,
         strategy_name: str,
         price: float,
+        bot_id: int = None,
         confidence: float = 1.0,
         executed: bool = False,
         metadata: Dict = None
@@ -223,6 +224,7 @@ class DatabaseManager:
         session = self.get_session()
         try:
             signal = Signal(
+                bot_id=bot_id,
                 symbol=symbol,
                 signal_type=signal_type,
                 strategy_name=strategy_name,

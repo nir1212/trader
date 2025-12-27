@@ -74,6 +74,12 @@ export interface Strategy {
   parameters: Record<string, any>;
 }
 
+export interface AvailableStrategy {
+  name: string;
+  display_name: string;
+  description: string;
+}
+
 export interface PerformanceMetrics {
   total_return: number;
   total_return_pct: number;
@@ -94,4 +100,43 @@ export interface Snapshot {
   total_pnl: number;
   total_pnl_pct: number;
   num_positions: number;
+}
+
+export interface BotConfig {
+  symbols: string[];
+  strategies: string[];
+  initial_capital: number;
+  paper_trading: boolean;
+  timeframe: string;
+  run_interval_seconds: number;
+  max_position_size: number;
+  stop_loss_pct: number;
+  take_profit_pct: number;
+  max_portfolio_risk: number;
+}
+
+export interface Bot {
+  id: number;
+  name: string;
+  description?: string;
+  portfolio_id: number;
+  status: 'stopped' | 'running' | 'paused' | 'error' | 'deleted';
+  is_running: boolean;
+  created_at?: string;
+  last_run_at?: string;
+  config: BotConfig;
+  portfolio_summary?: PortfolioSummary;
+}
+
+export interface CreateBotRequest {
+  name: string;
+  description?: string;
+  portfolio_id: number;
+  config: BotConfig;
+}
+
+export interface UpdateBotRequest {
+  name?: string;
+  description?: string;
+  config?: BotConfig;
 }

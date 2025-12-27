@@ -1,8 +1,28 @@
 import { useEffect, useState } from 'react';
-import { TrendingUp, TrendingDown, DollarSign, Activity } from 'lucide-react';
+import {
+  Box,
+  Card,
+  CardContent,
+  Grid,
+  Typography,
+  CircularProgress,
+  Table,
+  TableBody,
+  TableCell,
+  TableContainer,
+  TableHead,
+  TableRow,
+  Paper,
+} from '@mui/material';
+import {
+  TrendingUp,
+  TrendingDown,
+  AccountBalance,
+  ShowChart,
+} from '@mui/icons-material';
+import { LineChart, Line, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer } from 'recharts';
 import { getPortfolioSummary, getPortfolioSnapshots } from '../services/api';
 import type { PortfolioSummary, Snapshot } from '../types';
-import { LineChart, Line, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer } from 'recharts';
 
 export default function Dashboard() {
   const [summary, setSummary] = useState<PortfolioSummary | null>(null);
@@ -21,7 +41,7 @@ export default function Dashboard() {
       setSummary(portfolioData);
       
       const snapshotData = await getPortfolioSnapshots(1, 30);
-      setSnapshots(snapshotData.reverse());
+      setSnapshots(Array.isArray(snapshotData) ? snapshotData.reverse() : []);
     } catch (error) {
       console.error('Error loading dashboard data:', error);
     } finally {
@@ -31,92 +51,125 @@ export default function Dashboard() {
 
   if (loading) {
     return (
-      <div className="flex items-center justify-center h-64">
-        <div className="text-lg text-gray-600">Loading...</div>
-      </div>
+      <Box display="flex" justifyContent="center" alignItems="center" minHeight="400px">
+        <CircularProgress />
+      </Box>
     );
   }
 
   if (!summary) {
     return (
-      <div className="flex items-center justify-center h-64">
-        <div className="text-lg text-gray-600">No portfolio data available</div>
-      </div>
+      <Box display="flex" justifyContent="center" alignItems="center" minHeight="400px">
+        <Typography variant="h6" color="text.secondary">
+          No portfolio data available
+        </Typography>
+      </Box>
     );
   }
 
-  const isProfitable = summary.total_pnl >= 0;
+  const isProfitable = (summary.total_pnl || 0) >= 0;
 
   return (
-    <div className="space-y-6">
-      <div>
-        <h1 className="text-3xl font-bold text-gray-900">Dashboard</h1>
-        <p className="text-gray-600">Overview of your trading portfolio</p>
-      </div>
+    <Box>
+      <Typography variant="h4" gutterBottom fontWeight="bold">
+        Dashboard
+      </Typography>
+      <Typography variant="body1" color="text.secondary" gutterBottom sx={{ mb: 3 }}>
+        Overview of your trading portfolio
+      </Typography>
 
       {/* Stats Cards */}
-      <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6">
-        <div className="bg-white p-6 rounded-lg shadow">
-          <div className="flex items-center justify-between">
-            <div>
-              <p className="text-sm text-gray-600">Total Value</p>
-              <p className="text-2xl font-bold text-gray-900">
-                ${summary.total_value.toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 })}
-              </p>
-            </div>
-            <DollarSign className="w-8 h-8 text-blue-500" />
-          </div>
-        </div>
+      <Grid container spacing={3}>
+        <Grid item xs={12} sm={6} md={3} component="div">
+          <Card>
+            <CardContent>
+              <Box display="flex" justifyContent="space-between" alignItems="center">
+                <Box>
+                  <Typography color="text.secondary" gutterBottom>
+                    Total Value
+                  </Typography>
+                  <Typography variant="h5" fontWeight="bold">
+                    ${(summary.total_value || 0).toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 })}
+                  </Typography>
+                </Box>
+                <AccountBalance color="primary" sx={{ fontSize: 40 }} />
+              </Box>
+            </CardContent>
+          </Card>
+        </Grid>
 
-        <div className="bg-white p-6 rounded-lg shadow">
-          <div className="flex items-center justify-between">
-            <div>
-              <p className="text-sm text-gray-600">P&L</p>
-              <p className={`text-2xl font-bold ${isProfitable ? 'text-green-600' : 'text-red-600'}`}>
-                ${summary.total_pnl.toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 })}
-              </p>
-              <p className={`text-sm ${isProfitable ? 'text-green-600' : 'text-red-600'}`}>
-                {summary.total_pnl_pct.toFixed(2)}%
-              </p>
-            </div>
-            {isProfitable ? (
-              <TrendingUp className="w-8 h-8 text-green-500" />
-            ) : (
-              <TrendingDown className="w-8 h-8 text-red-500" />
-            )}
-          </div>
-        </div>
+        <Grid item xs={12} sm={6} md={3} component="div">
+          <Card>
+            <CardContent>
+              <Box display="flex" justifyContent="space-between" alignItems="center">
+                <Box>
+                  <Typography color="text.secondary" gutterBottom>
+                    P&L
+                  </Typography>
+                  <Typography variant="h5" fontWeight="bold" color={isProfitable ? 'success.main' : 'error.main'}>
+                    ${(summary.total_pnl || 0).toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 })}
+                  </Typography>
+                  <Typography variant="body2" color={isProfitable ? 'success.main' : 'error.main'}>
+                    {(summary.total_pnl_pct || 0).toFixed(2)}%
+                  </Typography>
+                </Box>
+                {isProfitable ? (
+                  <TrendingUp color="success" sx={{ fontSize: 40 }} />
+                ) : (
+                  <TrendingDown color="error" sx={{ fontSize: 40 }} />
+                )}
+              </Box>
+            </CardContent>
+          </Card>
+        </Grid>
 
-        <div className="bg-white p-6 rounded-lg shadow">
-          <div className="flex items-center justify-between">
-            <div>
-              <p className="text-sm text-gray-600">Cash Available</p>
-              <p className="text-2xl font-bold text-gray-900">
-                ${summary.cash.toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 })}
-              </p>
-            </div>
-            <DollarSign className="w-8 h-8 text-green-500" />
-          </div>
-        </div>
+        <Grid item xs={12} sm={6} md={3} component="div">
+          <Card>
+            <CardContent>
+              <Box display="flex" justifyContent="space-between" alignItems="center">
+                <Box>
+                  <Typography color="text.secondary" gutterBottom>
+                    Cash Available
+                  </Typography>
+                  <Typography variant="h5" fontWeight="bold">
+                    ${(summary.cash || 0).toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 })}
+                  </Typography>
+                </Box>
+                <AccountBalance color="success" sx={{ fontSize: 40 }} />
+              </Box>
+            </CardContent>
+          </Card>
+        </Grid>
 
-        <div className="bg-white p-6 rounded-lg shadow">
-          <div className="flex items-center justify-between">
-            <div>
-              <p className="text-sm text-gray-600">Open Positions</p>
-              <p className="text-2xl font-bold text-gray-900">{summary.num_positions}</p>
-              <p className="text-sm text-gray-600">
-                ${summary.positions_value.toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 })}
-              </p>
-            </div>
-            <Activity className="w-8 h-8 text-purple-500" />
-          </div>
-        </div>
-      </div>
+        <Grid item xs={12} sm={6} md={3} component="div">
+          <Card>
+            <CardContent>
+              <Box display="flex" justifyContent="space-between" alignItems="center">
+                <Box>
+                  <Typography color="text.secondary" gutterBottom>
+                    Open Positions
+                  </Typography>
+                  <Typography variant="h5" fontWeight="bold">
+                    {summary.num_positions || 0}
+                  </Typography>
+                  <Typography variant="body2" color="text.secondary">
+                    ${(summary.positions_value || 0).toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 })}
+                  </Typography>
+                </Box>
+                <ShowChart color="secondary" sx={{ fontSize: 40 }} />
+              </Box>
+            </CardContent>
+          </Card>
+        </Grid>
+      </Grid>
 
       {/* Portfolio Value Chart */}
       {snapshots.length > 0 && (
-        <div className="bg-white p-6 rounded-lg shadow">
-          <h2 className="text-xl font-bold text-gray-900 mb-4">Portfolio Value Over Time</h2>
+        <Card sx={{ mt: 3 }}>
+          <CardContent>
+            <Typography variant="h6" gutterBottom fontWeight="bold">
+              Portfolio Value Over Time
+            </Typography>
           <ResponsiveContainer width="100%" height={300}>
             <LineChart data={snapshots}>
               <CartesianGrid strokeDasharray="3 3" />
@@ -127,7 +180,7 @@ export default function Dashboard() {
               <YAxis />
               <Tooltip 
                 labelFormatter={(value) => new Date(value).toLocaleString()}
-                formatter={(value: number) => [`$${value.toFixed(2)}`, 'Value']}
+                formatter={(value) => [`$${typeof value === 'number' ? value.toFixed(2) : '0.00'}`, 'Value']}
               />
               <Line 
                 type="monotone" 
@@ -138,67 +191,55 @@ export default function Dashboard() {
               />
             </LineChart>
           </ResponsiveContainer>
-        </div>
+          </CardContent>
+        </Card>
       )}
 
       {/* Current Positions */}
-      {summary.num_positions > 0 && (
-        <div className="bg-white p-6 rounded-lg shadow">
-          <h2 className="text-xl font-bold text-gray-900 mb-4">Current Positions</h2>
-          <div className="overflow-x-auto">
-            <table className="min-w-full divide-y divide-gray-200">
-              <thead className="bg-gray-50">
-                <tr>
-                  <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
-                    Symbol
-                  </th>
-                  <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
-                    Quantity
-                  </th>
-                  <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
-                    Entry Price
-                  </th>
-                  <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
-                    Current Price
-                  </th>
-                  <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
-                    Value
-                  </th>
-                  <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
-                    P&L
-                  </th>
-                </tr>
-              </thead>
-              <tbody className="bg-white divide-y divide-gray-200">
+      {(summary.num_positions || 0) > 0 && summary.positions && (
+        <Card sx={{ mt: 3 }}>
+          <CardContent>
+            <Typography variant="h6" gutterBottom fontWeight="bold">
+              Current Positions
+            </Typography>
+            <TableContainer component={Paper} variant="outlined">
+              <Table>
+                <TableHead>
+                  <TableRow>
+                    <TableCell><strong>Symbol</strong></TableCell>
+                    <TableCell align="right"><strong>Quantity</strong></TableCell>
+                    <TableCell align="right"><strong>Entry Price</strong></TableCell>
+                    <TableCell align="right"><strong>Current Price</strong></TableCell>
+                    <TableCell align="right"><strong>Value</strong></TableCell>
+                    <TableCell align="right"><strong>P&L</strong></TableCell>
+                  </TableRow>
+                </TableHead>
+                <TableBody>
                 {Object.entries(summary.positions).map(([symbol, position]) => (
-                  <tr key={symbol}>
-                    <td className="px-6 py-4 whitespace-nowrap text-sm font-medium text-gray-900">
-                      {symbol}
-                    </td>
-                    <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-500">
-                      {position.quantity.toFixed(2)}
-                    </td>
-                    <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-500">
-                      ${position.entry_price.toFixed(2)}
-                    </td>
-                    <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-500">
-                      ${position.current_price.toFixed(2)}
-                    </td>
-                    <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-500">
-                      ${position.value.toFixed(2)}
-                    </td>
-                    <td className={`px-6 py-4 whitespace-nowrap text-sm font-medium ${
-                      position.pnl >= 0 ? 'text-green-600' : 'text-red-600'
-                    }`}>
-                      ${position.pnl.toFixed(2)} ({position.pnl_pct.toFixed(2)}%)
-                    </td>
-                  </tr>
+                  <TableRow key={symbol} hover>
+                    <TableCell component="th" scope="row">
+                      <Typography fontWeight="bold">{symbol}</Typography>
+                    </TableCell>
+                    <TableCell align="right">{position.quantity.toFixed(2)}</TableCell>
+                    <TableCell align="right">${position.entry_price.toFixed(2)}</TableCell>
+                    <TableCell align="right">${position.current_price.toFixed(2)}</TableCell>
+                    <TableCell align="right">${position.value.toFixed(2)}</TableCell>
+                    <TableCell align="right">
+                      <Typography
+                        fontWeight="bold"
+                        color={position.pnl >= 0 ? 'success.main' : 'error.main'}
+                      >
+                        ${position.pnl.toFixed(2)} ({position.pnl_pct.toFixed(2)}%)
+                      </Typography>
+                    </TableCell>
+                  </TableRow>
                 ))}
-              </tbody>
-            </table>
-          </div>
-        </div>
+                </TableBody>
+              </Table>
+            </TableContainer>
+          </CardContent>
+        </Card>
       )}
-    </div>
+    </Box>
   );
 }

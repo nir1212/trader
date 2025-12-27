@@ -1,301 +1,525 @@
 import { useEffect, useState } from 'react';
-import { Play, Square, RefreshCw } from 'lucide-react';
-import { startBot, stopBot, getBotStatus, getStrategies } from '../services/api';
-import type { BotStatus, Strategy, BotConfig } from '../types';
+import {
+  Box,
+  Button,
+  Card,
+  CardContent,
+  CardActions,
+  Chip,
+  Dialog,
+  DialogTitle,
+  DialogContent,
+  DialogActions,
+  Grid,
+  IconButton,
+  TextField,
+  Typography,
+  FormControl,
+  InputLabel,
+  Select,
+  MenuItem,
+  FormControlLabel,
+  Checkbox,
+  CircularProgress,
+  Fab,
+} from '@mui/material';
+import {
+  Add as AddIcon,
+  PlayArrow,
+  Stop,
+  Delete,
+  Edit,
+  Refresh,
+  SmartToy,
+} from '@mui/icons-material';
+import {
+  getBots,
+  createBot,
+  startBot,
+  stopBot,
+  deleteBot,
+  getAvailableStrategies,
+  getPortfolios,
+} from '../services/api';
+import type { Bot, CreateBotRequest, AvailableStrategy, Portfolio } from '../types';
 
 export default function BotControl() {
-  const [botStatus, setBotStatus] = useState<BotStatus | null>(null);
-  const [strategies, setStrategies] = useState<Strategy[]>([]);
-  const [loading, setLoading] = useState(false);
-  
-  const [config, setConfig] = useState<BotConfig>({
-    symbols: ['AAPL', 'MSFT', 'GOOGL'],
-    strategies: ['moving_average', 'rsi'],
-    paper_trading: true,
-    max_position_size: 0.1,
-    stop_loss_pct: 0.05,
-    take_profit_pct: 0.10,
+  const [bots, setBots] = useState<Bot[]>([]);
+  const [strategies, setStrategies] = useState<AvailableStrategy[]>([]);
+  const [portfolios, setPortfolios] = useState<Portfolio[]>([]);
+  const [loading, setLoading] = useState(true);
+  const [createDialogOpen, setCreateDialogOpen] = useState(false);
+  const [newBot, setNewBot] = useState<CreateBotRequest>({
+    name: '',
+    description: '',
+    portfolio_id: 1,
+    config: {
+      symbols: [],
+      strategies: [],
+      initial_capital: 10000,
+      paper_trading: true,
+      timeframe: '1d',
+      run_interval_seconds: 60,
+      max_position_size: 0.1,
+      stop_loss_pct: 0.05,
+      take_profit_pct: 0.10,
+      max_portfolio_risk: 0.02,
+    },
   });
+  const [symbolInput, setSymbolInput] = useState('');
 
   useEffect(() => {
     loadData();
-    const interval = setInterval(loadBotStatus, 5000); // Check status every 5s
+    const interval = setInterval(loadBots, 5000);
     return () => clearInterval(interval);
   }, []);
 
   const loadData = async () => {
     try {
-      const [statusData, strategiesData] = await Promise.all([
-        getBotStatus(),
-        getStrategies()
+      const [botsData, strategiesData, portfoliosData] = await Promise.all([
+        getBots(),
+        getAvailableStrategies(),
+        getPortfolios(),
       ]);
-      setBotStatus(statusData);
-      setStrategies(strategiesData);
+      setBots(Array.isArray(botsData) ? botsData : []);
+      setStrategies(Array.isArray(strategiesData) ? strategiesData : []);
+      setPortfolios(Array.isArray(portfoliosData) ? portfoliosData : []);
     } catch (error) {
       console.error('Error loading data:', error);
+      setBots([]);
+      setStrategies([]);
+      setPortfolios([]);
+    } finally {
+      setLoading(false);
     }
   };
 
-  const loadBotStatus = async () => {
+  const loadBots = async () => {
     try {
-      const statusData = await getBotStatus();
-      setBotStatus(statusData);
+      const botsData = await getBots();
+      setBots(Array.isArray(botsData) ? botsData : []);
     } catch (error) {
-      console.error('Error loading bot status:', error);
+      console.error('Error loading bots:', error);
+      setBots([]);
     }
   };
 
-  const handleStart = async () => {
-    setLoading(true);
+  const handleCreateBot = async () => {
     try {
-      await startBot(config);
-      await loadBotStatus();
-      alert('Bot started successfully!');
+      await createBot(newBot);
+      setCreateDialogOpen(false);
+      resetNewBot();
+      loadBots();
+    } catch (error: any) {
+      alert(`Failed to create bot: ${error.response?.data?.detail || error.message}`);
+    }
+  };
+
+  const handleStartBot = async (botId: number) => {
+    try {
+      await startBot(botId);
+      loadBots();
     } catch (error: any) {
       alert(`Failed to start bot: ${error.response?.data?.detail || error.message}`);
-    } finally {
-      setLoading(false);
     }
   };
 
-  const handleStop = async () => {
-    setLoading(true);
+  const handleStopBot = async (botId: number) => {
     try {
-      await stopBot();
-      await loadBotStatus();
-      alert('Bot stopped successfully!');
+      await stopBot(botId);
+      loadBots();
     } catch (error: any) {
       alert(`Failed to stop bot: ${error.response?.data?.detail || error.message}`);
-    } finally {
-      setLoading(false);
     }
   };
 
-  const toggleStrategy = (strategyName: string) => {
-    setConfig(prev => ({
-      ...prev,
-      strategies: prev.strategies.includes(strategyName)
-        ? prev.strategies.filter(s => s !== strategyName)
-        : [...prev.strategies, strategyName]
-    }));
+  const handleDeleteBot = async (botId: number) => {
+    if (confirm('Are you sure you want to delete this bot?')) {
+      try {
+        await deleteBot(botId);
+        loadBots();
+      } catch (error: any) {
+        alert(`Failed to delete bot: ${error.response?.data?.detail || error.message}`);
+      }
+    }
+  };
+
+  const resetNewBot = () => {
+    setNewBot({
+      name: '',
+      description: '',
+      portfolio_id: portfolios[0]?.id || 1,
+      config: {
+        symbols: [],
+        strategies: [],
+        initial_capital: 10000,
+        paper_trading: true,
+        timeframe: '1d',
+        run_interval_seconds: 60,
+        max_position_size: 0.1,
+        stop_loss_pct: 0.05,
+        take_profit_pct: 0.10,
+        max_portfolio_risk: 0.02,
+      },
+    });
+    setSymbolInput('');
   };
 
   const addSymbol = () => {
-    const symbol = prompt('Enter symbol (e.g., AAPL):');
-    if (symbol && !config.symbols.includes(symbol.toUpperCase())) {
-      setConfig(prev => ({
+    if (symbolInput && !newBot.config.symbols.includes(symbolInput.toUpperCase())) {
+      setNewBot(prev => ({
         ...prev,
-        symbols: [...prev.symbols, symbol.toUpperCase()]
+        config: {
+          ...prev.config,
+          symbols: [...prev.config.symbols, symbolInput.toUpperCase()],
+        },
       }));
+      setSymbolInput('');
     }
   };
 
   const removeSymbol = (symbol: string) => {
-    setConfig(prev => ({
+    setNewBot(prev => ({
       ...prev,
-      symbols: prev.symbols.filter(s => s !== symbol)
+      config: {
+        ...prev.config,
+        symbols: prev.config.symbols.filter(s => s !== symbol),
+      },
     }));
   };
 
-  const isRunning = botStatus?.is_running || false;
+  const toggleStrategy = (strategyName: string) => {
+    setNewBot(prev => ({
+      ...prev,
+      config: {
+        ...prev.config,
+        strategies: prev.config.strategies.includes(strategyName)
+          ? prev.config.strategies.filter(s => s !== strategyName)
+          : [...prev.config.strategies, strategyName],
+      },
+    }));
+  };
+
+  const getStatusColor = (status: string) => {
+    switch (status) {
+      case 'running': return 'success';
+      case 'stopped': return 'default';
+      case 'error': return 'error';
+      case 'paused': return 'warning';
+      default: return 'default';
+    }
+  };
+
+  if (loading) {
+    return (
+      <Box display="flex" justifyContent="center" alignItems="center" minHeight="400px">
+        <CircularProgress />
+      </Box>
+    );
+  }
 
   return (
-    <div className="space-y-6">
-      <div>
-        <h1 className="text-3xl font-bold text-gray-900">Bot Control</h1>
-        <p className="text-gray-600">Start, stop, and configure your trading bot</p>
-      </div>
+    <Box>
+      <Box display="flex" justifyContent="space-between" alignItems="center" mb={3}>
+        <Box>
+          <Typography variant="h4" gutterBottom fontWeight="bold">
+            Bot Management
+          </Typography>
+          <Typography variant="body1" color="text.secondary">
+            Create and manage your trading bots
+          </Typography>
+        </Box>
+        <Button
+          variant="contained"
+          startIcon={<AddIcon />}
+          onClick={() => setCreateDialogOpen(true)}
+          size="large"
+        >
+          Create Bot
+        </Button>
+      </Box>
 
-      {/* Bot Status */}
-      <div className="bg-white p-6 rounded-lg shadow">
-        <div className="flex items-center justify-between mb-4">
-          <h2 className="text-xl font-bold text-gray-900">Bot Status</h2>
-          <div className="flex items-center gap-2">
-            <div className={`w-3 h-3 rounded-full ${isRunning ? 'bg-green-500' : 'bg-gray-400'}`} />
-            <span className="text-sm font-medium text-gray-700">
-              {isRunning ? 'Running' : 'Stopped'}
-            </span>
-          </div>
-        </div>
-
-        {botStatus && isRunning && (
-          <div className="grid grid-cols-2 md:grid-cols-4 gap-4 text-sm">
-            <div>
-              <p className="text-gray-600">Symbols</p>
-              <p className="font-medium">{botStatus.symbols.join(', ')}</p>
-            </div>
-            <div>
-              <p className="text-gray-600">Strategies</p>
-              <p className="font-medium">{botStatus.strategies.length}</p>
-            </div>
-            <div>
-              <p className="text-gray-600">Uptime</p>
-              <p className="font-medium">
-                {botStatus.uptime_seconds ? `${Math.floor(botStatus.uptime_seconds / 60)}m` : '-'}
-              </p>
-            </div>
-            <div>
-              <p className="text-gray-600">Portfolio ID</p>
-              <p className="font-medium">{botStatus.portfolio_id || '-'}</p>
-            </div>
-          </div>
-        )}
-
-        <div className="flex gap-4 mt-6">
-          <button
-            onClick={handleStart}
-            disabled={isRunning || loading}
-            className="flex items-center gap-2 px-6 py-3 bg-green-600 text-white rounded-lg hover:bg-green-700 disabled:bg-gray-400 disabled:cursor-not-allowed transition"
-          >
-            <Play className="w-5 h-5" />
-            Start Bot
-          </button>
-          <button
-            onClick={handleStop}
-            disabled={!isRunning || loading}
-            className="flex items-center gap-2 px-6 py-3 bg-red-600 text-white rounded-lg hover:bg-red-700 disabled:bg-gray-400 disabled:cursor-not-allowed transition"
-          >
-            <Square className="w-5 h-5" />
-            Stop Bot
-          </button>
-          <button
-            onClick={loadBotStatus}
-            disabled={loading}
-            className="flex items-center gap-2 px-6 py-3 bg-blue-600 text-white rounded-lg hover:bg-blue-700 disabled:bg-gray-400 transition"
-          >
-            <RefreshCw className="w-5 h-5" />
-            Refresh
-          </button>
-        </div>
-      </div>
-
-      {/* Configuration */}
-      <div className="bg-white p-6 rounded-lg shadow">
-        <h2 className="text-xl font-bold text-gray-900 mb-4">Configuration</h2>
-
-        {/* Symbols */}
-        <div className="mb-6">
-          <label className="block text-sm font-medium text-gray-700 mb-2">
-            Trading Symbols
-          </label>
-          <div className="flex flex-wrap gap-2 mb-2">
-            {config.symbols.map(symbol => (
-              <span
-                key={symbol}
-                className="inline-flex items-center gap-1 px-3 py-1 bg-blue-100 text-blue-800 rounded-full text-sm"
+      {bots.length === 0 ? (
+        <Card>
+          <CardContent>
+            <Box textAlign="center" py={4}>
+              <SmartToy sx={{ fontSize: 64, color: 'text.secondary', mb: 2 }} />
+              <Typography variant="h6" gutterBottom>
+                No bots yet
+              </Typography>
+              <Typography variant="body2" color="text.secondary" mb={2}>
+                Create your first trading bot to get started
+              </Typography>
+              <Button
+                variant="contained"
+                startIcon={<AddIcon />}
+                onClick={() => setCreateDialogOpen(true)}
               >
-                {symbol}
-                <button
-                  onClick={() => removeSymbol(symbol)}
-                  className="hover:text-blue-600"
-                >
-                  ×
-                </button>
-              </span>
-            ))}
-          </div>
-          <button
-            onClick={addSymbol}
-            className="text-sm text-blue-600 hover:text-blue-700"
-          >
-            + Add Symbol
-          </button>
-        </div>
+                Create Bot
+              </Button>
+            </Box>
+          </CardContent>
+        </Card>
+      ) : (
+        <Grid container spacing={3}>
+          {bots.map(bot => (
+            <Grid item xs={12} md={6} lg={4} key={bot.id} component="div">
+              <Card>
+                <CardContent>
+                  <Box display="flex" justifyContent="space-between" alignItems="start" mb={2}>
+                    <Box>
+                      <Typography variant="h6" fontWeight="bold">
+                        {bot.name}
+                      </Typography>
+                      <Typography variant="body2" color="text.secondary">
+                        {bot.description || 'No description'}
+                      </Typography>
+                    </Box>
+                    <Chip
+                      label={bot.status}
+                      color={getStatusColor(bot.status) as any}
+                      size="small"
+                    />
+                  </Box>
 
-        {/* Strategies */}
-        <div className="mb-6">
-          <label className="block text-sm font-medium text-gray-700 mb-2">
-            Trading Strategies
-          </label>
-          <div className="space-y-2">
-            {strategies.map(strategy => (
-              <label key={strategy.name} className="flex items-center gap-2">
-                <input
-                  type="checkbox"
-                  checked={config.strategies.includes(strategy.name)}
-                  onChange={() => toggleStrategy(strategy.name)}
-                  className="w-4 h-4 text-blue-600 rounded"
+                  <Box mb={2}>
+                    <Typography variant="caption" color="text.secondary">
+                      Symbols
+                    </Typography>
+                    <Box display="flex" flexWrap="wrap" gap={0.5} mt={0.5}>
+                      {bot.config.symbols.map(symbol => (
+                        <Chip key={symbol} label={symbol} size="small" variant="outlined" />
+                      ))}
+                    </Box>
+                  </Box>
+
+                  <Box mb={2}>
+                    <Typography variant="caption" color="text.secondary">
+                      Strategies
+                    </Typography>
+                    <Box display="flex" flexWrap="wrap" gap={0.5} mt={0.5}>
+                      {bot.config.strategies.map(strategy => (
+                        <Chip key={strategy} label={strategy} size="small" color="primary" variant="outlined" />
+                      ))}
+                    </Box>
+                  </Box>
+
+                  <Box display="grid" gridTemplateColumns="1fr 1fr" gap={1}>
+                    <Box>
+                      <Typography variant="caption" color="text.secondary">
+                        Position Size
+                      </Typography>
+                      <Typography variant="body2">
+                        {(bot.config.max_position_size * 100).toFixed(0)}%
+                      </Typography>
+                    </Box>
+                    <Box>
+                      <Typography variant="caption" color="text.secondary">
+                        Stop Loss
+                      </Typography>
+                      <Typography variant="body2">
+                        {(bot.config.stop_loss_pct * 100).toFixed(1)}%
+                      </Typography>
+                    </Box>
+                  </Box>
+                </CardContent>
+                <CardActions>
+                  {bot.is_running ? (
+                    <Button
+                      size="small"
+                      startIcon={<Stop />}
+                      onClick={() => handleStopBot(bot.id)}
+                      color="error"
+                    >
+                      Stop
+                    </Button>
+                  ) : (
+                    <Button
+                      size="small"
+                      startIcon={<PlayArrow />}
+                      onClick={() => handleStartBot(bot.id)}
+                      color="success"
+                    >
+                      Start
+                    </Button>
+                  )}
+                  <Button
+                    size="small"
+                    startIcon={<Delete />}
+                    onClick={() => handleDeleteBot(bot.id)}
+                    color="error"
+                    disabled={bot.is_running}
+                  >
+                    Delete
+                  </Button>
+                  <Box flexGrow={1} />
+                  <IconButton size="small" onClick={loadBots}>
+                    <Refresh />
+                  </IconButton>
+                </CardActions>
+              </Card>
+            </Grid>
+          ))}
+        </Grid>
+      )}
+
+      {/* Create Bot Dialog */}
+      <Dialog open={createDialogOpen} onClose={() => setCreateDialogOpen(false)} maxWidth="md" fullWidth>
+        <DialogTitle>Create New Bot</DialogTitle>
+        <DialogContent>
+          <Box sx={{ pt: 2 }}>
+            <TextField
+              fullWidth
+              label="Bot Name"
+              value={newBot.name}
+              onChange={(e) => setNewBot(prev => ({ ...prev, name: e.target.value }))}
+              margin="normal"
+              required
+            />
+            <TextField
+              fullWidth
+              label="Description"
+              value={newBot.description}
+              onChange={(e) => setNewBot(prev => ({ ...prev, description: e.target.value }))}
+              margin="normal"
+              multiline
+              rows={2}
+            />
+
+            <FormControl fullWidth margin="normal">
+              <InputLabel>Portfolio</InputLabel>
+              <Select
+                value={newBot.portfolio_id}
+                onChange={(e) => setNewBot(prev => ({ ...prev, portfolio_id: e.target.value as number }))}
+                label="Portfolio"
+              >
+                {portfolios.map(p => (
+                  <MenuItem key={p.id} value={p.id}>{p.name}</MenuItem>
+                ))}
+              </Select>
+            </FormControl>
+
+            <Box mt={2}>
+              <Typography variant="subtitle2" gutterBottom>
+                Trading Symbols
+              </Typography>
+              <Box display="flex" gap={1} mb={1}>
+                <TextField
+                  size="small"
+                  placeholder="e.g., AAPL"
+                  value={symbolInput}
+                  onChange={(e) => setSymbolInput(e.target.value.toUpperCase())}
+                  onKeyPress={(e) => e.key === 'Enter' && addSymbol()}
                 />
-                <span className="text-sm text-gray-700">{strategy.description}</span>
-              </label>
-            ))}
-          </div>
-        </div>
+                <Button onClick={addSymbol} variant="outlined">Add</Button>
+              </Box>
+              <Box display="flex" flexWrap="wrap" gap={1}>
+                {newBot.config.symbols.map(symbol => (
+                  <Chip
+                    key={symbol}
+                    label={symbol}
+                    onDelete={() => removeSymbol(symbol)}
+                    color="primary"
+                  />
+                ))}
+              </Box>
+            </Box>
 
-        {/* Risk Settings */}
-        <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
-          <div>
-            <label className="block text-sm font-medium text-gray-700 mb-2">
-              Max Position Size (% of portfolio)
-            </label>
-            <input
-              type="number"
-              value={config.max_position_size * 100}
-              onChange={(e) => setConfig(prev => ({
-                ...prev,
-                max_position_size: parseFloat(e.target.value) / 100
-              }))}
-              min="1"
-              max="100"
-              step="1"
-              className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent"
+            <Box mt={2}>
+              <Typography variant="subtitle2" gutterBottom>
+                Strategies
+              </Typography>
+              {strategies.map(strategy => (
+                <FormControlLabel
+                  key={strategy.name}
+                  control={
+                    <Checkbox
+                      checked={newBot.config.strategies.includes(strategy.name)}
+                      onChange={() => toggleStrategy(strategy.name)}
+                    />
+                  }
+                  label={`${strategy.display_name} - ${strategy.description}`}
+                />
+              ))}
+            </Box>
+
+            <Grid container spacing={2} mt={1}>
+              <Grid item xs={6} component="div">
+                <TextField
+                  fullWidth
+                  type="number"
+                  label="Initial Capital"
+                  value={newBot.config.initial_capital}
+                  onChange={(e) => setNewBot(prev => ({
+                    ...prev,
+                    config: { ...prev.config, initial_capital: parseFloat(e.target.value) }
+                  }))}
+                />
+              </Grid>
+              <Grid item xs={6} component="div">
+                <TextField
+                  fullWidth
+                  type="number"
+                  label="Max Position Size (%)"
+                  value={newBot.config.max_position_size * 100}
+                  onChange={(e) => setNewBot(prev => ({
+                    ...prev,
+                    config: { ...prev.config, max_position_size: parseFloat(e.target.value) / 100 }
+                  }))}
+                />
+              </Grid>
+              <Grid item xs={6} component="div">
+                <TextField
+                  fullWidth
+                  type="number"
+                  label="Stop Loss (%)"
+                  value={newBot.config.stop_loss_pct * 100}
+                  onChange={(e) => setNewBot(prev => ({
+                    ...prev,
+                    config: { ...prev.config, stop_loss_pct: parseFloat(e.target.value) / 100 }
+                  }))}
+                />
+              </Grid>
+              <Grid item xs={6} component="div">
+                <TextField
+                  fullWidth
+                  type="number"
+                  label="Take Profit (%)"
+                  value={newBot.config.take_profit_pct * 100}
+                  onChange={(e) => setNewBot(prev => ({
+                    ...prev,
+                    config: { ...prev.config, take_profit_pct: parseFloat(e.target.value) / 100 }
+                  }))}
+                />
+              </Grid>
+            </Grid>
+
+            <FormControlLabel
+              control={
+                <Checkbox
+                  checked={newBot.config.paper_trading}
+                  onChange={(e) => setNewBot(prev => ({
+                    ...prev,
+                    config: { ...prev.config, paper_trading: e.target.checked }
+                  }))}
+                />
+              }
+              label="Paper Trading (Simulation Mode)"
+              sx={{ mt: 2 }}
             />
-          </div>
-
-          <div>
-            <label className="block text-sm font-medium text-gray-700 mb-2">
-              Stop Loss (%)
-            </label>
-            <input
-              type="number"
-              value={config.stop_loss_pct * 100}
-              onChange={(e) => setConfig(prev => ({
-                ...prev,
-                stop_loss_pct: parseFloat(e.target.value) / 100
-              }))}
-              min="1"
-              max="50"
-              step="0.5"
-              className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent"
-            />
-          </div>
-
-          <div>
-            <label className="block text-sm font-medium text-gray-700 mb-2">
-              Take Profit (%)
-            </label>
-            <input
-              type="number"
-              value={config.take_profit_pct * 100}
-              onChange={(e) => setConfig(prev => ({
-                ...prev,
-                take_profit_pct: parseFloat(e.target.value) / 100
-              }))}
-              min="1"
-              max="100"
-              step="0.5"
-              className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent"
-            />
-          </div>
-
-          <div>
-            <label className="block text-sm font-medium text-gray-700 mb-2">
-              Trading Mode
-            </label>
-            <select
-              value={config.paper_trading ? 'paper' : 'live'}
-              onChange={(e) => setConfig(prev => ({
-                ...prev,
-                paper_trading: e.target.value === 'paper'
-              }))}
-              className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent"
-            >
-              <option value="paper">Paper Trading (Simulation)</option>
-              <option value="live">Live Trading (Real Money)</option>
-            </select>
-          </div>
-        </div>
-      </div>
-    </div>
+          </Box>
+        </DialogContent>
+        <DialogActions>
+          <Button onClick={() => setCreateDialogOpen(false)}>Cancel</Button>
+          <Button
+            onClick={handleCreateBot}
+            variant="contained"
+            disabled={!newBot.name || newBot.config.symbols.length === 0 || newBot.config.strategies.length === 0}
+          >
+            Create Bot
+          </Button>
+        </DialogActions>
+      </Dialog>
+    </Box>
   );
 }
